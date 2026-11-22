@@ -21,6 +21,7 @@ class ClickerConfig:
     button: str = "left"
     double: bool = False
     burst: int = 1               # clicks crammed into one SendInput/event call
+    limit_mode: str = "none"     # "none" | "clicks" | "seconds"
     limit_clicks: int = 0        # 0 = unlimited
     limit_seconds: float = 0.0   # 0 = unlimited
     position: str = "cursor"     # "cursor" | "fixed"

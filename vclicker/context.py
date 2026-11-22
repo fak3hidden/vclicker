@@ -90,9 +90,9 @@ class AppContext(QObject):
         data.update({
             "mode": cfg.mode, "cps": cfg.cps, "ms": cfg.ms, "button": cfg.button,
             "double": cfg.double, "burst": cfg.burst,
-            "limit_mode": "clicks" if cfg.limit_clicks else ("seconds" if cfg.limit_seconds else "none"),
-            "limit_clicks": cfg.limit_clicks or 100,
-            "limit_seconds": cfg.limit_seconds or 10.0,
+            "limit_mode": cfg.limit_mode,
+            "limit_clicks": cfg.limit_clicks,
+            "limit_seconds": cfg.limit_seconds,
             "position": cfg.position, "x": cfg.x, "y": cfg.y, "jitter": cfg.jitter,
         })
         self._save_timer.start()

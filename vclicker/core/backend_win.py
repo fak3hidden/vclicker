@@ -213,7 +213,10 @@ def _mouse_input(flags: int, dx: int = 0, dy: int = 0, data: int = 0) -> INPUT:
 def _key_input(vk: int, flags: int = 0) -> INPUT:
     item = INPUT()
     item.type = INPUT_KEYBOARD
-    item.ki = KEYBDINPUT(vk & 0xFFFF, 0, flags, 0, 0)
+    # Including the hardware scan code makes the event look native to apps that
+    # inspect the key message (and to DirectInput-style polling).
+    scan = user32.MapVirtualKeyW(vk, 0) & 0xFF
+    item.ki = KEYBDINPUT(vk & 0xFFFF, scan, flags, 0, 0)
     return item
 
 
@@ -558,6 +561,10 @@ class WindowsMonitor(BaseMonitor):
         self._kb_proc_ref = _HOOKPROC(kb_proc)
         self._ms_proc_ref = _HOOKPROC(ms_proc)
         try:
+            # Force this thread's message queue into existence so a very early
+            # stop() cannot lose the WM_QUIT.
+            peek = wintypes.MSG()
+            user32.PeekMessageW(ctypes.byref(peek), None, 0, 0, 0)
             self._kb_hook = user32.SetWindowsHookExW(WH_KEYBOARD_LL, self._kb_proc_ref, module, 0)
             self._ms_hook = user32.SetWindowsHookExW(WH_MOUSE_LL, self._ms_proc_ref, module, 0)
             if not self._kb_hook:

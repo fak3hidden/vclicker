@@ -474,6 +474,7 @@ class CpsGraph(QWidget):
     def paintEvent(self, event) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        painter.fillRect(self.rect(), QColor(theme.CARD))
         rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
         main, _h, _p, _soft, _l = theme.accent_tuple(_accent_name())
         base = QColor("#1D2430")

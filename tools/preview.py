@@ -9,6 +9,7 @@ import os
 import random
 import sys
 import tempfile
+import time
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -75,8 +76,9 @@ def main() -> int:
     from vclicker.ui.pages.keyholder_page import KeyHolderPage
 
     clicker = next(p for p in window.pages if isinstance(p, ClickerPage))
-    for value in (18, 24, 22, 31, 28, 30, 26, 33, 35, 31, 29, 34, 38, 36, 33, 35, 40, 37, 39, 42):
-        clicker.graph.push(value)
+    random.seed(5)
+    for _ in range(72):
+        clicker.graph.push(random.uniform(16, 44))
     clicker.tile_speed.set_value("1,284")
     clicker.tile_total.set_value("37,912")
     clicker.tile_peak.set_value("2,140")
@@ -92,9 +94,28 @@ def main() -> int:
     macros.list.setCurrentRow(0)
     macros._on_selection(macros.list.currentItem(), None)
 
+    # shot 1 shows the live state; the real "running" flag needs a live thread,
+    # so fake the property for the screenshot only.
+    from vclicker.core.clicker import AutoClicker
+    AutoClicker.running = property(lambda self: True)
+    clicker._on_state(True)
+    random.seed(5)
+    for _ in range(72):
+        clicker.graph.push(random.uniform(16, 44))
+    clicker.tile_speed.set_value("1,284")
+    clicker.tile_total.set_value("37,912")
+    clicker.tile_peak.set_value("2,140")
+    clicker.runtime_hint.setText("Zero delay — maximum throughput")
+    window._refresh_global_state()
+    app.processEvents()
+
     from vclicker.ui.main_window import NAV
 
     for index, (_key, text, _icon, _cls) in enumerate(NAV):
+        if index == 1:
+            AutoClicker.running = property(lambda self: self._thread is not None)
+            clicker._on_state(False)
+            window._refresh_global_state()
         window.set_page(index)
         app.processEvents()
         page = window.stack.currentWidget()
@@ -109,15 +130,35 @@ def main() -> int:
         path = os.path.join(outdir, f"{index + 1}-{text.lower().replace(' ', '-')}.png")
         pixmap.save(path)
         print("saved", path)
+        if index == 0:
+            window.resize(1240, 1180)
+            app.processEvents()
+            window.grab().save(os.path.join(outdir, "0-hero.png"))
+            print("saved", os.path.join(outdir, "0-hero.png"))
+            window.resize(1240, 860)
+            app.processEvents()
 
-    # detail: clicker page with running state
+    # detail: key holder with keys held
+    window.set_page(1)
+    keyholder.target_seg.set_value("windows", emit=True)
+    keyholder.picker._windows = fake_windows()      # switching target re-scans
+    keyholder.picker.set_selection(fake_windows())
+    keyholder.cfg.windows = list(fake_windows())
+    ctx.keyholder._active = True
+    ctx.keyholder._keys = ["space"]
+    ctx.keyholder._windows = list(fake_windows())
+    keyholder._held_since = time.monotonic() - 12.0
+    keyholder._on_state(True)
+    window._refresh_global_state()
+    app.processEvents()
+    app.processEvents()
+    window.grab().save(os.path.join(outdir, "6-keyholder-holding.png"))
+    print("saved", os.path.join(outdir, "6-keyholder-holding.png"))
+    ctx.keyholder._active = False
+    keyholder._on_state(False)
+    window._refresh_global_state()
     window.set_page(0)
     app.processEvents()
-    clicker._on_state(True)
-    clicker.status.set_state("live", "Running")
-    app.processEvents()
-    window.grab().save(os.path.join(outdir, "6-clicker-running.png"))
-    print("saved", os.path.join(outdir, "6-clicker-running.png"))
 
     # diagnostics dialog
     from vclicker.ui.pages.settings_page import DiagnosticsDialog

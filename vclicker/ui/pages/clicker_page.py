@@ -209,7 +209,8 @@ class ClickerPage(Page):
     # ------------------------------------------------------------------ #
     def _build_backend_card(self) -> None:
         backend = self.ctx.backend
-        card = Card("Input backend", backend.describe(), "shield")
+        card = Card("Input backend", "How clicks and keys reach your operating system.",
+                    "shield")
         caps = backend.caps
 
         rows = QWidget()
@@ -347,6 +348,7 @@ class ClickerPage(Page):
         try:
             mode = self.limit_seg.value()
             value = int(self.limit_spin.value())
+            self.cfg.limit_mode = mode
             self.cfg.limit_clicks = value if mode == "clicks" else 0
             self.cfg.limit_seconds = float(value) if mode == "seconds" else 0.0
             self.ctx.persist_clicker()
@@ -427,15 +429,18 @@ class ClickerPage(Page):
         self.double_row.setChecked(cfg.double)
         self.pos_seg.set_value(cfg.position)
 
-        if cfg.limit_clicks:
+        mode = cfg.limit_mode if cfg.limit_mode in ("none", "clicks", "seconds") else "none"
+        if mode == "none":                       # tolerate older configs
+            mode = "clicks" if cfg.limit_clicks else ("seconds" if cfg.limit_seconds else "none")
+        if mode == "clicks":
             self.limit_seg.set_value("clicks")
             self.limit_spin.setRange(1, 1000000)
-            self.limit_spin.setValue(int(cfg.limit_clicks))
+            self.limit_spin.setValue(int(cfg.limit_clicks) or 100)
             self.limit_suffix.setText("clicks")
-        elif cfg.limit_seconds:
+        elif mode == "seconds":
             self.limit_seg.set_value("seconds")
             self.limit_spin.setRange(1, 86400)
-            self.limit_spin.setValue(int(cfg.limit_seconds))
+            self.limit_spin.setValue(int(cfg.limit_seconds) or 10)
             self.limit_suffix.setText("seconds")
         else:
             self.limit_seg.set_value("none")

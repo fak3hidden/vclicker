@@ -4,7 +4,7 @@
 
 VClicker talks straight to the operating system (`SendInput` on Windows, `XTest` on X11, `CoreGraphics` on macOS) through Python's `ctypes`, so there is no interpreter overhead between your click and the OS. The only third-party dependency is Qt 6 for the interface.
 
-![Auto clicker page](docs/screenshots/1-auto-clicker.png)
+![VClicker auto clicker](docs/screenshots/0-hero.png)
 
 ---
 
@@ -103,6 +103,8 @@ The result is `dist/VClicker.exe` with the fonts, icons and Qt runtime embedded.
 2. Choose **Until released** or **Timed** (auto-release after *N* seconds).
 3. Choose **Active window** (send to whatever has focus) or **Selected windows**.
 4. With *Selected windows*, tick as many open windows as you like — the key is held on all of them simultaneously, without stealing focus.
+
+![Holding a key on five windows](docs/screenshots/6-keyholder-holding.png)
 
 *Platform notes:* on Windows the keys are delivered with `PostMessage`, so target windows stay in the background. On X11 the selected windows are focused in turn (X11 has no safe background key delivery). DirectInput/Raw Input games ignore synthetic messages — use *Active window* for those.
 
