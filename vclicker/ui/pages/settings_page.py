@@ -6,10 +6,11 @@ import sys
 
 from PySide6.QtCore import Qt, QUrl
 from PySide6.QtGui import QDesktopServices
-from PySide6.QtWidgets import (QButtonGroup, QDialog, QHBoxLayout, QPushButton,
-                               QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QApplication, QButtonGroup, QDialog, QHBoxLayout,
+                               QPushButton, QVBoxLayout, QWidget)
 
-from ... import __version__, theme
+from ... import __version__, session, theme
+from ...doctor import missing_libraries
 from ...paths import app_dir, config_path, macros_dir
 from ..widgets import Banner, Card, StatusPill, ToggleRow, button, divider, icon_badge, label
 from .base import Page
@@ -171,6 +172,31 @@ class SettingsPage(Page):
         if backend.needs_permissions_hint:
             card.add(Banner(backend.needs_permissions_hint, "warn"))
 
+        if sys.platform.startswith("linux"):
+            missing = missing_libraries() if not backend.caps.clicking else []
+            if missing:
+                names = ", ".join(name.split(".so")[0] for name in missing)
+                card.add(Banner(f"Not installed: {names}", "bad"))
+                command = session.install_command(missing)
+                fix_row = QHBoxLayout()
+                fix_row.setContentsMargins(0, 0, 0, 0)
+                fix_row.setSpacing(8)
+                code = label(command, "key")
+                code.setWordWrap(True)
+                code.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+                fix_row.addWidget(code, 1)
+                copy = button("Copy", "ghost", "copy", theme.TEXT)
+                copy.setMinimumHeight(32)
+                copy.clicked.connect(lambda _=False, cmd=command: self._copy(cmd))
+                fix_row.addWidget(copy)
+                card.add_layout(fix_row)
+                card.add(label("Then restart VClicker. Run “python run.py --check” to verify.",
+                               "dim", wrap=True))
+        if sys.platform.startswith("linux") and session.kind() == "wayland":
+            card.add(Banner(
+                "Wayland session detected: input only reaches X11 (XWayland) windows. "
+                "Log into an “X11 / Xorg” session for native Wayland apps.", "warn"))
+
         buttons = QHBoxLayout()
         buttons.setContentsMargins(0, 0, 0, 0)
         buttons.setSpacing(8)
@@ -183,6 +209,12 @@ class SettingsPage(Page):
         buttons.addStretch(1)
         card.add_layout(buttons)
         self.backend_card = card
+
+    def _copy(self, text: str) -> None:
+        clipboard = QApplication.clipboard()
+        if clipboard is not None:
+            clipboard.setText(text)
+            self.ctx.notify.emit("Command copied to clipboard", "ok")
 
     def _build_data(self) -> None:
         card = Card("Data", "Everything stays on this computer.", "save")

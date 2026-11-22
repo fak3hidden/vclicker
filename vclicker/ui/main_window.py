@@ -221,8 +221,13 @@ class MainWindow(QMainWindow):
         name = label(backend.name, "dim", wrap=True)
         name.setStyleSheet(f"color: {theme.MUTED}; font-size: 11px;")
         layout.addWidget(name)
-        self.monitor_label = label(
-            "Capture active" if self.ctx.monitor.running else "Capture unavailable", "dim")
+        if not backend.caps.recording:
+            capture_text = "Capture unavailable"
+        elif self.ctx.monitor.running:
+            capture_text = "Capture active"
+        else:
+            capture_text = "Capture stopped"
+        self.monitor_label = label(capture_text, "dim")
         self.monitor_label.setStyleSheet(f"color: {theme.DIM}; font-size: 10.5px;")
         layout.addWidget(self.monitor_label)
         return holder

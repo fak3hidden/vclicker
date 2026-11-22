@@ -61,6 +61,8 @@ def create_app(argv: list[str] | None = None) -> tuple[QApplication, MainWindow,
     app.setApplicationDisplayName("VClicker")
     app.setApplicationVersion(__version__)
     app.setOrganizationName("VClicker")
+    # Lets desktops (X11 and Wayland) match the window to its .desktop entry.
+    app.setDesktopFileName("vclicker")
     app.setStyle("Fusion")
 
     family = load_fonts()

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """VClicker launcher.
 
-    python run.py
+    python run.py            start the app
+    python run.py --check    report on the native input layer (no GUI)
 """
 
 from __future__ import annotations
@@ -24,6 +25,9 @@ def _missing_dependency() -> None:
 
 
 def main() -> int:
+    if any(arg in ("--check", "--doctor", "doctor") for arg in sys.argv[1:]):
+        from vclicker.doctor import main as doctor_main
+        return doctor_main(sys.argv[1:])
     try:
         import PySide6
         _ = PySide6.__version__

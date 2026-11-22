@@ -11,6 +11,7 @@ import time
 from ctypes import c_char_p, c_int, c_long, c_ubyte, c_uint, c_ulong, c_void_p
 
 from .. import keys as keymap
+from .. import session
 from .backend_base import Backend, BackendUnavailable, Capabilities, ClickAction, InputEvent, WindowInfo
 from .monitor import BaseMonitor
 
@@ -31,14 +32,34 @@ SCROLL_DOWN = 5
 
 
 def _load_libs():
+    xlib = None
+    for name in ("libX11.so.6", "libX11.so"):
+        try:
+            xlib = ctypes.CDLL(name)
+            break
+        except OSError:  # pragma: no cover - depends on host
+            continue
+    if xlib is None:
+        raise BackendUnavailable("libX11 not found")
+
+    xtst = None
+    for name in ("libXtst.so.6", "libXtst.so"):
+        try:
+            xtst = ctypes.CDLL(name)
+            break
+        except OSError:
+            continue
+    if xtst is None:
+        raise BackendUnavailable("libXtst not found")
+
+    # Xlib is only thread-safe once this is called; the click loop, the polling
+    # monitor and the UI all talk to the server from different threads.
     try:
-        xlib = ctypes.CDLL("libX11.so.6")
-    except OSError as exc:  # pragma: no cover - depends on host
-        raise BackendUnavailable(f"libX11 not found: {exc}") from exc
-    try:
-        xtst = ctypes.CDLL("libXtst.so.6")
-    except OSError as exc:  # pragma: no cover
-        raise BackendUnavailable(f"libXtst not found: {exc}") from exc
+        xlib.XInitThreads.restype = c_int
+        xlib.XInitThreads.argtypes = ()
+        xlib.XInitThreads()
+    except AttributeError:  # pragma: no cover - ancient libX11
+        pass
 
     xlib.XOpenDisplay.restype = c_void_p
     xlib.XOpenDisplay.argtypes = (c_char_p,)
@@ -97,7 +118,9 @@ class X11Backend(Backend):
         self._xlib, self._xtst = _load_libs()
         self._dpy = self._xlib.XOpenDisplay(None)
         if not self._dpy:
-            raise BackendUnavailable("Could not open X display ($DISPLAY is not reachable).")
+            if session.kind() == "wayland":
+                raise BackendUnavailable("Wayland session without XWayland")
+            raise BackendUnavailable("No X display found")
         self._root = int(self._xlib.XDefaultRootWindow(self._dpy))
         self._keycodes: dict[str, int] = {}
         self._name_by_keycode: dict[int, str] = {}
@@ -111,14 +134,21 @@ class X11Backend(Backend):
             recording_quality="X11 polling (2 ms resolution)",
             hotkeys=True,
             scroll=True,
-            notes=[
-                "Multi-window key-hold focuses each selected window in turn (X11 has no safe background key delivery).",
-                "Wayland sessions can only inject through XWayland windows.",
-                "Mouse wheel is not captured while recording on X11.",
-            ],
+            notes=self._session_notes(),
         )
 
     # -- internals --------------------------------------------------------- #
+    def _session_notes(self) -> list[str]:
+        notes = [
+            "Multi-window key-hold focuses each selected window in turn "
+            "(X11 has no safe background key delivery).",
+            "Mouse wheel is not captured while recording on X11.",
+        ]
+        if session.kind() == "wayland":
+            notes.insert(0, "Wayland session: input reaches XWayland windows only "
+                            "(X11 apps and games). Native Wayland apps ignore XTest.")
+        return notes
+
     def _build_keymaps(self) -> None:
         for name, info in keymap.KEYS.items():
             sym_name = info.x11
@@ -391,7 +421,8 @@ class X11Backend(Backend):
         return X11Monitor(self)
 
     def describe(self) -> str:
-        return "Linux · X11 XTest + 2 ms polling"
+        session_name = "Wayland (XWayland)" if session.kind() == "wayland" else "X11"
+        return f"Linux · {session_name} XTest + 2 ms polling"
 
 
 # --------------------------------------------------------------------------- #
@@ -408,11 +439,19 @@ class X11Monitor(BaseMonitor):
         self._thread: threading.Thread | None = None
         self._last_buttons: set[str] = set()
         self._last_pos = (-1, -1)
+        # Own connection keeps the 2 ms polling off the injection stream.
+        self._dpy = backend._xlib.XOpenDisplay(None) or backend._dpy
+        self._owns_dpy = bool(self._dpy) and self._dpy != backend._dpy
 
     def start(self) -> bool:
         if self._thread and self._thread.is_alive():
             self._running = True
             return True
+        if not self._dpy:                     # re-open after a previous stop()
+            self._dpy = self._backend._xlib.XOpenDisplay(None) or self._backend._dpy
+            self._owns_dpy = bool(self._dpy) and self._dpy != self._backend._dpy
+        if not self._dpy:
+            return False
         self._running = True
         self._thread = threading.Thread(target=self._run, name="VClickerX11Poll", daemon=True)
         self._thread.start()
@@ -423,10 +462,17 @@ class X11Monitor(BaseMonitor):
         if self._thread:
             self._thread.join(timeout=1.0)
         self._thread = None
+        if self._owns_dpy and self._dpy:
+            try:
+                self._backend._xlib.XCloseDisplay(self._dpy)
+            except Exception:
+                pass
+            self._dpy = None
+            self._owns_dpy = False
 
     def _run(self) -> None:
         xlib = self._backend._xlib
-        dpy = self._backend._dpy
+        dpy = self._dpy
         root = self._backend._root
         names = self._backend._name_by_keycode
         bitmap = (ctypes.c_char * 32)()

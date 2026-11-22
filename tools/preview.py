@@ -15,7 +15,9 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from vclicker.app import create_app  # noqa: E402
-from vclicker.core.backend_base import WindowInfo  # noqa: E402
+from vclicker.core import backend as backend_mod  # noqa: E402
+from vclicker.core.backend import NullBackend  # noqa: E402
+from vclicker.core.backend_base import Capabilities, WindowInfo  # noqa: E402
 from vclicker.core.macros import Macro, MacroEvent  # noqa: E402
 
 
@@ -27,6 +29,23 @@ def fake_windows():
         WindowInfo(104, "Discord", "Discord.exe", 3344),
         WindowInfo(105, "ELDEN RING", "eldenring.exe", 9911),
     ]
+
+
+class PreviewBackend(NullBackend):
+    """A healthy X11 backend so screenshots look like a normal desktop install."""
+
+    def __init__(self) -> None:
+        super().__init__("preview")
+        self.name = "Linux · X11 / XTest"
+        self.os_name = "linux"
+        self.caps = Capabilities(
+            clicking=True, key_send=True, targeted_hold=True, window_list=True,
+            recording=True, recording_quality="X11 polling (2 ms resolution)",
+            hotkeys=True, scroll=True,
+            notes=["Multi-window key-hold focuses each selected window in turn."])
+
+    def describe(self) -> str:
+        return "Linux · X11 XTest + 2 ms polling"
 
 
 def sample_events(duration: float, seed: int) -> list[MacroEvent]:
@@ -53,7 +72,24 @@ def main() -> int:
     os.makedirs(outdir, exist_ok=True)
     os.environ.setdefault("XDG_CONFIG_HOME", tempfile.mkdtemp(prefix="vclicker-cfg-"))
 
+    use_fake_backend = os.environ.get("VCLICKER_PREVIEW_BACKEND", "fake") != "real"
+    if use_fake_backend:
+        backend_mod._CACHE = PreviewBackend()
+
     app, window, ctx = create_app([])
+
+    if not use_fake_backend:
+        # Document what a missing input library looks like on Linux.
+        window.resize(1240, 860)
+        window.show()
+        app.processEvents()
+        for index in (0, 4):
+            window.set_page(index)
+            app.processEvents()
+            app.processEvents()
+        window.grab().save(os.path.join(outdir, "9-input-missing.png"))
+        print("saved", os.path.join(outdir, "9-input-missing.png"))
+        return 0
     ctx.backend.list_windows = fake_windows
 
     # seed a macro library
