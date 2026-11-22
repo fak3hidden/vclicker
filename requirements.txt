@@ -1,0 +1,3 @@
+# Only one dependency: Qt 6 for the interface. All input handling talks to the
+# operating system through the Python standard library (ctypes).
+PySide6-Essentials>=6.5,<7
