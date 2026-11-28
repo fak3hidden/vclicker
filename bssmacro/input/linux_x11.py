@@ -1,9 +1,9 @@
 """Linux/X11 input controller using XTest (no Qt, no extra packages).
 
-This mirrors the proven XTest path from ``vclicker.core.backend_x11`` but is
-self-contained so the macro can run headless without pulling in PySide6. It also
-knows how to focus the Sober window before injecting input, which matters
-because a game only receives synthetic key events while it owns input focus.
+Self-contained ctypes XTest path: injects mouse + keyboard events into the
+focused window and knows how to focus the Sober window before injecting, which
+matters because a game only receives synthetic key events while it owns input
+focus.
 """
 
 from __future__ import annotations
@@ -15,12 +15,7 @@ from ctypes import c_char_p, c_int, c_long, c_ubyte, c_uint, c_ulong, c_void_p
 from typing import Optional
 
 from ..capture.window import WindowFinderUnavailable, find_window, focus_window
-
-try:  # reuse vclicker's canonical key table (no Qt dependency)
-    from vclicker.keys import KEYS, MOUSE_BUTTONS
-except Exception:  # pragma: no cover - vclicker always present in this repo
-    KEYS = {}
-    MOUSE_BUTTONS = {"left": 1, "middle": 2, "right": 3}
+from .keys import KEYS, MOUSE_BUTTONS
 
 
 class X11Unavailable(RuntimeError):

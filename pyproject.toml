@@ -3,32 +3,22 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "vclicker"
-version = "1.0.0"
-description = "Native auto clicker, key holder, macro recorder and hotkey daemon with a modern Qt interface"
-readme = "README.md"
+name = "bssmacro"
+version = "0.1.0"
+description = "Bee Swarm Simulator macro for Linux (Sober) — AI collector, windy/stinger farming, Discord progress"
+readme = "bssmacro/README.md"
 requires-python = ">=3.10"
-dependencies = ["PySide6-Essentials>=6.5,<7"]
-keywords = ["auto-clicker", "macro", "hotkeys", "automation", "pyside6"]
+license = "MIT"
+authors = [{name = "fak3hidden"}]
+keywords = ["roblox", "sober", "bee-swarm-simulator", "macro", "linux", "wayland"]
 classifiers = [
-    "Environment :: X11 Applications :: Qt",
-    "Operating System :: Microsoft :: Windows",
+    "Environment :: X11 Applications",
+    "Intended Audience :: End Users/Desktop",
     "Operating System :: POSIX :: Linux",
-    "Operating System :: MacOS",
     "Programming Language :: Python :: 3",
-    "Topic :: Desktop Environment",
-    "Topic :: Utilities",
+    "Topic :: Games/Entertainment",
 ]
-
-[project.scripts]
-vclicker = "vclicker.app:main"
-bssmacro = "bssmacro.cli:main"
-
-[project.optional-dependencies]
-# Optional dependency group for the Bee Swarm Simulator macro (bssmacro).
-# vclicker itself stays dependency-light; install these for the BSS macro:
-#   pip install -e ".[bss]"
-bss = [
+dependencies = [
     "numpy",
     "opencv-python-headless",
     "mss",
@@ -36,12 +26,22 @@ bss = [
     "pillow",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
+
+[project.scripts]
+bssmacro = "bssmacro.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/fak3hidden/vclicker"
+
 [tool.setuptools]
 include-package-data = true
 
 [tool.setuptools.packages.find]
-include = ["vclicker*", "bssmacro*"]
+include = ["bssmacro*"]
 
 [tool.setuptools.package-data]
-vclicker = ["assets/fonts/*.ttf", "assets/fonts/*.txt", "assets/icons/*.svg"]
-bssmacro = ["templates/*.md", "templates/*.png"]
+bssmacro = ["templates/*.md", "templates/*.png", "requirements.txt"]

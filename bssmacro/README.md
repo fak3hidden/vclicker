@@ -30,7 +30,6 @@ Everything runs from one process:
 ## Install (Linux)
 
 ```bash
-cd vclicker
 python3 -m venv .venv
 .venv/bin/pip install -r bssmacro/requirements.txt   # numpy, opencv, mss, requests, pillow
 ```
@@ -108,7 +107,7 @@ Notes & limits on native Wayland:
 python run_bss.py selftest
 
 # 1) write a default config
-python run_bss.py config                       # -> ~/.config/vclicker/bssmacro/config.json
+python run_bss.py config                       # -> ~/.config/bssmacro/config.json
 
 # 2) point it at your Discord webhook (edit the JSON) and test it
 python run_bss.py webhook-test
@@ -129,7 +128,7 @@ python run_bss.py run --objective mixed        # everything at once
 ## Configuration
 
 `python run_bss.py config` writes a fully-commented-by-example JSON to
-`~/.config/vclicker/bssmacro/config.json`. Highlights:
+`~/.config/bssmacro/config.json`. Highlights:
 
 | Section        | What it controls                                                                 |
 |----------------|----------------------------------------------------------------------------------|

@@ -6,7 +6,7 @@ or the ``bssmacro config`` / ``calibrate`` CLI tools.
 
 Config file location (overridable with ``--config path.json``)::
 
-    ~/.config/vclicker/bssmacro/config.json
+    ~/.config/bssmacro/config.json
 """
 
 from __future__ import annotations
@@ -23,13 +23,12 @@ from .vision.detector import DetectorConfig
 from .vision.hud import HudConfig
 from .webhook.discord import WebhookConfig
 
-APP_NAME = "vclicker"
+APP_NAME = "bssmacro"
 CONFIG_DIR = os.environ.get("XDG_CONFIG_HOME") or os.path.join(
     os.path.expanduser("~"), ".config")
-BASE_DIR = os.path.join(CONFIG_DIR, APP_NAME, "bssmacro")
+BASE_DIR = os.path.join(CONFIG_DIR, APP_NAME)
 DEFAULT_CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
-BUNDLED_TEMPLATES = os.path.join(os.path.dirname(os.path.dirname(__file__)),
-                                 "bssmacro", "templates")
+BUNDLED_TEMPLATES = os.path.join(os.path.dirname(__file__), "templates")
 
 
 # --------------------------------------------------------------------------- #
