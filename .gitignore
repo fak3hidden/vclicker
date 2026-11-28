@@ -17,3 +17,6 @@ bssmacro/captures/
 *.log
 bssmacro/config.local.json
 
+
+# standalone BSS macro repo (copied out separately)
+bssmacro-standalone/
