@@ -22,12 +22,26 @@ classifiers = [
 
 [project.scripts]
 vclicker = "vclicker.app:main"
+bssmacro = "bssmacro.cli:main"
+
+[project.optional-dependencies]
+# Optional dependency group for the Bee Swarm Simulator macro (bssmacro).
+# vclicker itself stays dependency-light; install these for the BSS macro:
+#   pip install -e ".[bss]"
+bss = [
+    "numpy",
+    "opencv-python-headless",
+    "mss",
+    "requests",
+    "pillow",
+]
 
 [tool.setuptools]
 include-package-data = true
 
 [tool.setuptools.packages.find]
-include = ["vclicker*"]
+include = ["vclicker*", "bssmacro*"]
 
 [tool.setuptools.package-data]
 vclicker = ["assets/fonts/*.ttf", "assets/fonts/*.txt", "assets/icons/*.svg"]
+bssmacro = ["templates/*.md", "templates/*.png"]

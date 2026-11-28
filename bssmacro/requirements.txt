@@ -1,0 +1,7 @@
+# Dependencies for the Bee Swarm Simulator macro (bssmacro).
+# vclicker itself only needs PySide6; these are only required for bssmacro.
+numpy
+opencv-python-headless
+mss
+requests
+pillow

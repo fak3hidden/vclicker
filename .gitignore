@@ -10,3 +10,10 @@ venv/
 .DS_Store
 Thumbs.db
 *.spec
+
+# BSS macro runtime artifacts
+bssmacro/templates/_window.png
+bssmacro/captures/
+*.log
+bssmacro/config.local.json
+
