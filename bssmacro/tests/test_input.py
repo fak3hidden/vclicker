@@ -1,7 +1,8 @@
+import os
 import unittest
 
 from bssmacro.input.base import FakeInput
-from bssmacro.input.select import get_input
+from bssmacro.input.select import describe_auto, get_input
 
 
 class TestFakeInput(unittest.TestCase):
@@ -33,6 +34,24 @@ class TestInputSelect(unittest.TestCase):
         ctrl = get_input("auto")
         self.assertTrue(hasattr(ctrl, "click"))
 
+    def test_unknown_kind_raises(self):
+        with self.assertRaises(ValueError):
+            get_input("telepathy")
 
-if __name__ == "__main__":
-    unittest.main()
+    def test_uinput_without_device(self):
+        from bssmacro.input.linux_uinput import UinputInput, uinput_available
+
+        if uinput_available():
+            self.skipTest("/dev/uinput is available on this machine")
+        with self.assertRaises(Exception):
+            get_input("uinput")
+
+    def test_ydotool_without_binary(self):
+        if os.environ.get("PATH") and __import__("shutil").which("ydotool"):
+            self.skipTest("ydotool is installed on this machine")
+        with self.assertRaises(Exception):
+            get_input("ydotool")
+
+    def test_describe_auto(self):
+        self.assertIsInstance(describe_auto(), str)
+        self.assertTrue(describe_auto())

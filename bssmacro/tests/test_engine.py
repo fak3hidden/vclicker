@@ -19,6 +19,28 @@ def build_engine(tmp_templates: str, **cfg_overrides) -> Engine:
     return Engine(cfg, FakeInput(), capture=None)
 
 
+class _SizeAwareFake(FakeInput):
+    def __init__(self):
+        super().__init__()
+        self.sizes = []
+
+    def set_screen_size(self, w, h):
+        self.sizes.append((w, h))
+
+
+class TestEngineWaylandHooks(unittest.TestCase):
+    def test_screen_size_passed_to_input(self):
+        tmp = tempfile.mkdtemp()
+        cfg = MacroConfig.default()
+        cfg.templates_dir = tmp
+        cfg.field_cfg.random_walk = False
+        cfg.gather_cps = 0
+        input_ctrl = _SizeAwareFake()
+        eng = Engine(cfg, input_ctrl, capture=None)
+        eng.loop_once(frame_with(400, 300, []))
+        self.assertIn((400, 300), input_ctrl.sizes)
+
+
 class TestEngineField(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()

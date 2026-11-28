@@ -2,11 +2,13 @@
 
 A single, integrated Bee Swarm Simulator automation macro for **Linux**, in the
 spirit of Revolution/Natro, built to drive the game through **Sober**
-(Roblox on Linux) via X11/XWayland.
+(Roblox on Linux). Works on **X11, XWayland *and* native Wayland**.
 
 Everything runs from one process:
 
-* **Screen capture** of the Sober window (`mss` + X11 window lookup).
+* **Screen capture** of the Sober window — `mss` + X11 window lookup on
+  X11/XWayland, or the compositor's own screenshot tool (`grim`, `spectacle`,
+  `gnome-screenshot`, …) on native Wayland.
 * **"AI collector" vision** — template matching *plus* a colour fallback finds
   tokens (honey, treats, royal jellies, stars, gifts, bubbles…), creatures
   (spiders, mantis, werewolves, king beetles…) and hazards on screen.
@@ -28,15 +30,76 @@ Everything runs from one process:
 ## Install (Linux)
 
 ```bash
-# System deps: X11 + XTest come with your desktop; Python 3.10+ assumed.
 cd vclicker
 python3 -m venv .venv
-.venv/bin pip install -r bssmacro/requirements.txt   # numpy, opencv, mss, requests, pillow
+.venv/bin/pip install -r bssmacro/requirements.txt   # numpy, opencv, mss, requests, pillow
 ```
 
-No display-server gymnastics needed: if you run Sober through XWayland (the
-default on most distros), everything works — the macro locates the Sober window
-via X11 and injects keys/clicks with XTest.
+Input backend depends on your display server (see the Wayland section below):
+
+| Session            | Input                                    | Capture                          |
+|--------------------|------------------------------------------|----------------------------------|
+| X11                | XTest (`libXtst`)                        | `mss`                            |
+| XWayland (Sober under XWayland) | XTest — usually all you need | `mss` (X11 windows only)         |
+| Native Wayland     | `uinput` virtual device or `ydotool`     | `grim`/`spectacle`/`gnome-screenshot` |
+
+## Native Wayland support
+
+Wayland, by design, does **not** let programs inject input into other windows —
+XTest is an X11-only trick, and `mss` can only see X11 windows. The macro
+therefore switches to two kernel/compositor-level paths when there is no usable
+X display:
+
+**Input — `uinput` virtual device** (default on Wayland, `input_kind = "uinput"`).
+A virtual keyboard + touchscreen-style pointer is created directly through
+`/dev/uinput` with zero extra Python packages. The kernel treats it as real
+hardware, so *every* Wayland compositor (GNOME, KDE, sway, Hyprland, …)
+processes its events like physical input: WASD reaches the game and taps land
+at exact screen coordinates. One-time setup:
+
+```bash
+sudo modprobe uinput
+echo 'KERNEL=="uinput", MODE="0660", GROUP="input", OPTIONS+="static_node=uinput"' \
+    | sudo tee /etc/udev/rules.d/70-uinput.rules
+sudo udevadm control --reload && sudo udevadm trigger
+sudo usermod -aG input "$USER"    # then log out and back in
+```
+
+Already running `ydotoold`? Set `input_kind = "ydotool"` instead — the macro
+will drive the game through the ydotool CLI (same keycodes, no second virtual
+device).
+
+**Capture — compositor screenshot CLI** (`capture.method = "cli"`). Frames are
+grabbed with whichever tool your desktop ships, tried in this order until one
+succeeds: `grim` → `wayshot` → `spectacle` → `gnome-screenshot` → `scrot` →
+`maim` → `import`. It uses the compositor's own screenshot interface (the same
+thing PrintScreen uses). Force a specific one with `capture.shot_tool`.
+
+Window lookup: `hyprctl clients -j` on Hyprland, `swaymsg -t get_tree -r` on
+sway/wlroots. **GNOME and KDE have no CLI window query** — on those desktops
+put Sober in **fullscreen** so the whole output is the game (recommended on
+every compositor; it also makes click coordinates pixel-exact). Focus is
+handled by clicking the window centre (click-to-focus) — Wayland won't let us
+raise windows programmatically.
+
+Recommended Wayland config snippet:
+
+```json
+{
+  "input_kind": "uinput",
+  "capture": { "method": "cli", "shot_tool": "" }
+}
+```
+
+Notes & limits on native Wayland:
+
+* Screenshot-per-frame is slower than `mss` (~100–400 ms per frame). Fine for
+  token farming; lower `capture.downscale` if needed.
+* Keyboard movement is rock-solid everywhere; absolute taps are scaled from the
+  captured frame size (the engine feeds the live resolution to the device).
+* If your compositor mangles absolute pointer positions, use `ydotool`.
+* Single-monitor setups align perfectly; with multiple monitors prefer
+  fullscreen Sober or `capture.fixed_region`.
 
 ## Quick start
 
@@ -71,11 +134,11 @@ python run_bss.py run --objective mixed        # everything at once
 | Section        | What it controls                                                                 |
 |----------------|----------------------------------------------------------------------------------|
 | `window_*`     | How the Sober/Roblox window is found (title/process substrings).                  |
-| `input_kind`   | `auto` (X11 when available), `x11`, or `fake` (testing).                          |
+| `input_kind`   | `auto` (X11 → uinput → fake), `x11`, `uinput`/`wayland`, `ydotool`, `fake`.       |
 | `move_*`       | WASD key bindings, deadzone/arrive radii, click-to-move fallback.                  |
 | `gather_cps`   | Auto-collect click rate while standing on tokens (0 = off).                        |
 | `objective`    | `field` / `windy` / `stinger` / `mixed`.                                          |
-| `capture`      | Downscale factor, capture FPS, fixed region override.                             |
+| `capture`      | Downscale factor, capture FPS, `method` (`auto`/`mss`/`cli`), `shot_tool`, fixed region. |
 | `collector`    | **Priority rules** (see below), global `min_score`, avoid list.                    |
 | `detector`     | Template-match threshold, scales, colour-bucket fallback toggles.                  |
 | `hud`          | Honey-bar region + HSV so the macro knows when to convert.                        |
@@ -150,12 +213,12 @@ bssmacro/
 ├── engine.py           The orchestrator: detect → choose → move → act → report
 ├── calibrate.py        Screenshot + interactive template cropping
 ├── cli.py / __main__.py  `python -m bssmacro …` (also `python run_bss.py …`)
-├── capture/            Sober window finder (X11) + mss screen capture
-├── input/              X11Input (XTest) with FakeInput test double
+├── capture/            Sober window finder (X11 + Wayland IPC), mss + screenshot-CLI capture
+├── input/              XTest (X11), uinput virtual device (Wayland), ydotool, FakeInput
 ├── vision/             Template store, detector (template+colour), collector, HUD reader
 ├── farming/            Field / Windy / Stinger / Mixed objectives
 ├── webhook/            Discord webhook client
-└── tests/              Headless unittest suite (47 tests)
+└── tests/              Headless unittest suite (85 tests)
 ```
 
 The engine loop (`Engine.loop_once`) is deliberately side-effect-light and
@@ -169,5 +232,7 @@ pipeline is tested headlessly with synthetic frames (`bssmacro/tests/`).
 * Movement is WASD dead-reckoning: the macro presses keys toward the target's
   screen position and re-checks every frame. Roblox camera angle affects this;
   keep your camera in a consistent position.
+* On native Wayland, GNOME/KDE users should fullscreen Sober (no CLI window
+  query there); screenshot-based capture is slower than mss.
 * Using macros violates Roblox ToS and can get your account banned. This is
   for educational/personal automation experimentation. You assume all risk.

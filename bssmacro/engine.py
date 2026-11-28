@@ -166,6 +166,14 @@ class Engine:
         self._last_frame = frame
         self.stats.fps = self._update_fps()
 
+        # uinput needs the frame's pixel size to scale absolute coordinates.
+        ss = getattr(self.input, "set_screen_size", None)
+        if ss is not None:
+            try:
+                ss(frame.region.w, frame.region.h)
+            except Exception:
+                pass
+
         detections = self.detector.detect(frame)
         self._last_detections = detections
         hud = self.hud.read(frame)

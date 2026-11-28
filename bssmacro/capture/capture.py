@@ -38,6 +38,8 @@ class CaptureConfig:
     title_contains: Optional[list[str]] = None
     process_contains: Optional[list[str]] = None
     fixed_region: Optional[Rect] = None   # override automatic window detection
+    method: str = "auto"            # auto | mss (X11) | cli (Wayland)
+    shot_tool: str = ""             # force a screenshot CLI (grim, spectacle, …)
 
 
 class ScreenCapture:

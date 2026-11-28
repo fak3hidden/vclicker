@@ -149,6 +149,8 @@ class MacroConfig:
                 capture_fps=float(c.get("capture_fps", cfg.capture.capture_fps)),
                 title_contains=c.get("title_contains"),
                 process_contains=c.get("process_contains"),
+                method=str(c.get("method", cfg.capture.method)),
+                shot_tool=str(c.get("shot_tool", cfg.capture.shot_tool)),
             )
         if "detector" in d and isinstance(d["detector"], dict):
             det = d["detector"]
@@ -254,6 +256,8 @@ class MacroConfig:
                 "capture_fps": self.capture.capture_fps,
                 "title_contains": self.capture.title_contains,
                 "process_contains": self.capture.process_contains,
+                "method": self.capture.method,
+                "shot_tool": self.capture.shot_tool,
             },
             "detector": {
                 "threshold": self.detector.threshold,

@@ -1,8 +1,16 @@
-"""Locate and focus the Sober (Linux Roblox) window via X11.
+"""Locate and focus the Sober (Linux Roblox) window.
 
-Sober renders Roblox in an X11 window (even under Wayland it normally runs under
-XWayland), so the macro can find it the same way any X11 automation tool would:
-walk ``_NET_CLIENT_LIST`` and read ``_NET_WM_NAME`` / ``_NET_WM_PID``.
+Two backends are tried:
+
+* **X11 / XWayland** — walk ``_NET_CLIENT_LIST`` and read ``_NET_WM_NAME`` /
+  ``_NET_WM_PID`` (``X11WindowFinder``). Also supports raising/focusing the
+  window, which is impossible on Wayland.
+* **Native Wayland** — compositor IPC: ``hyprctl clients -j`` on Hyprland,
+  ``swaymsg -t get_tree -r`` on sway/wlroots (``WaylandWindowFinder``). Focus
+  there is click-to-focus, performed by the uinput/ydotool controllers.
+
+``find_window()`` keeps X11-only semantics for compatibility;
+``find_window_any()`` tries X11 first and falls back to Wayland.
 """
 
 from __future__ import annotations
@@ -258,6 +266,28 @@ def find_window(title_contains: Optional[List[str]] = None,
 
 def focus_window(ident: int) -> None:
     _get_finder().focus(ident)
+
+
+def find_window_any(title_contains: Optional[List[str]] = None,
+                    process_contains: Optional[List[str]] = None):
+    """X11 first, then native Wayland. Returns a handle/wayland window or None.
+
+    Never raises — display-server problems count as "not found".
+    """
+
+    try:
+        win = find_window(title_contains=title_contains,
+                          process_contains=process_contains)
+        if win is not None:
+            return win
+    except WindowFinderUnavailable:
+        pass
+    try:
+        from .wayland import WaylandWindowFinder
+
+        return WaylandWindowFinder().find(title_contains, process_contains)
+    except Exception:
+        return None
 
 
 def list_sober_windows() -> List[WindowHandle]:

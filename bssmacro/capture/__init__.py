@@ -1,11 +1,20 @@
-"""Screen capture for the BSS macro."""
+"""Screen capture for the BSS macro (X11/mss + Wayland screenshot-CLI)."""
 
 from __future__ import annotations
 
 from .capture import CaptureConfig, ScreenCapture, SyntheticCapture
-from .window import find_window, focus_window, WindowFinderUnavailable, WindowHandle
+from .wayland import ShotCapture, WaylandWindow, WaylandWindowFinder
+from .window import (
+    WindowFinderUnavailable,
+    WindowHandle,
+    find_window,
+    find_window_any,
+    focus_window,
+)
 
 __all__ = [
     "CaptureConfig", "ScreenCapture", "SyntheticCapture",
-    "find_window", "focus_window", "WindowFinderUnavailable", "WindowHandle",
+    "ShotCapture", "WaylandWindow", "WaylandWindowFinder",
+    "find_window", "find_window_any", "focus_window",
+    "WindowFinderUnavailable", "WindowHandle",
 ]

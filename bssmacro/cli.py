@@ -11,6 +11,15 @@ Subcommands::
 
 Use ``--fake`` with ``run`` to drive the whole pipeline against the live Sober
 window *without* injecting real input (great for verifying detection/templates).
+
+X11 / XWayland vs native Wayland
+--------------------------------
+
+* **X11 / XWayland**: works out of the box (XTest input + mss capture).
+* **Native Wayland (GNOME/KDE/sway/Hyprland)**: set ``input_kind = "uinput"``
+  (needs /dev/uinput write access — see README) or ``"ydotool"`` (needs
+  ydotoold), and ``capture.method = "cli"`` so frames come from the
+  compositor's screenshot tool (grim / spectacle / gnome-screenshot).
 """
 
 from __future__ import annotations
@@ -23,20 +32,48 @@ from typing import Optional
 
 from . import __version__
 from .config import DEFAULT_CONFIG_PATH, MacroConfig
-from .input.select import get_input
+from .input.select import describe_auto, get_input
 from .webhook.discord import DiscordWebhook
 
 
 def _make_capture(cfg: MacroConfig):
     from .capture.capture import CaptureConfig, ScreenCapture
+    from .capture.wayland import ShotCapture
 
     cap_cfg = CaptureConfig(
         downscale=cfg.capture.downscale,
         capture_fps=cfg.capture.capture_fps,
         title_contains=cfg.window_title_contains,
         process_contains=cfg.window_process_contains,
+        method=cfg.capture.method,
+        shot_tool=cfg.capture.shot_tool,
     )
-    return ScreenCapture(cap_cfg)
+    method = (cap_cfg.method or "auto").lower()
+    if method in ("cli", "wayland", "shot"):
+        return ShotCapture(
+            downscale=cap_cfg.downscale,
+            title_contains=cap_cfg.title_contains,
+            process_contains=cap_cfg.process_contains,
+            shot_tool=cap_cfg.shot_tool or None)
+    if method in ("mss", "x11"):
+        return ScreenCapture(cap_cfg)
+    # auto: mss whenever an X/XWayland display can find the game, else the
+    # compositor screenshot path (native Wayland).
+    cap = ScreenCapture(cap_cfg)
+    try:
+        if cap.locate_window() is not None:
+            return cap
+    except Exception:
+        pass
+    if os.environ.get("WAYLAND_DISPLAY") or os.environ.get("XDG_SESSION_TYPE") == "wayland":
+        return ShotCapture(
+            downscale=cap_cfg.downscale,
+            title_contains=cap_cfg.title_contains,
+            process_contains=cap_cfg.process_contains,
+            shot_tool=cap_cfg.shot_tool or None)
+    # No X window and no Wayland marker — keep the mss capture so the error
+    # message at grab time explains exactly what's missing.
+    return cap
 
 
 def cmd_config(args) -> int:
@@ -81,6 +118,8 @@ def cmd_run(args) -> int:
 
     engine = Engine(cfg, ctrl, capture, webhook, status_cb=_print_status)
     print(f"Starting BSS macro (objective={cfg.objective}, input={input_kind})…")
+    if input_kind == "auto":
+        print(f"input backend: {describe_auto()}")
     print("Ctrl+C to stop.")
     if capture is None:
         # Dry run: step synthetic frames so we still exercise the pipeline.
